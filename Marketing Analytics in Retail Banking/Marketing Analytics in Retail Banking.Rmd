@@ -1,0 +1,620 @@
+---
+title: "Marketing Analytics in Retail Banking"
+author: "Nikhil Sharma"
+output:
+  html_document: default
+  pdf_document: default
+---
+## Libraries
+```{r}
+library(randomForest)
+library(tidyverse)
+library(ggplot2)
+library(MASS)
+library(corrplot)
+library(Hmisc)
+library(dplyr) 
+library(e1071)
+library(pROC)
+library(caret)
+library(ggcorrplot)
+library(GGally)
+library(VIM)
+library(caret)
+library(mlbench)
+library(mice)
+library(DMwR)
+library(ROCR)
+library(gmodels)
+```
+
+## Data Importing
+```{r}
+data = read.csv("~/Desktop/DataScienceProjects/bank-full.csv")
+dataset = as.data.frame(data)
+```
+
+## Data Overview
+```{r}
+# Summary
+summary(dataset)
+
+# Attributes
+names(dataset)
+
+# First 6 rows of dataset
+head(dataset)
+
+# Descriptive Statistics
+describe(dataset)
+
+# Descriptive Statistics
+psych::describe(dataset)
+
+# Structure
+str(dataset)
+
+# Dimensions
+dim(dataset)
+
+# Type of data
+class(dataset)
+
+# Checking classes of attributes
+sapply(dataset,class)
+sapply(dataset, levels)
+```
+
+## Exploratory Data Analaysis
+```{r}
+## Customers Demographics
+# Age
+ggplot(dataset, aes(x=age))+geom_histogram(binwidth=2, colour="black", aes(y=..density.., fill=..count..)) + scale_fill_gradient("Count", low="#DCDCDC", high="#7C7C7C") + stat_function(fun=dnorm, color="red",args=list(mean=mean(dataset$age),sd=sd(dataset$age))) + labs(title = "Customer Age Distribution") + ylab('Count') + xlab('Age') 
+
+ggplot(dataset, aes(y, age)) + geom_boxplot(aes(fill = y)) +labs(y="Term Deposit") + labs(x="Age") + ggtitle("Term Deposit By Age")
+
+ggplot(dataset, aes(y, duration)) + geom_boxplot(aes(fill = y)) +labs(y="Duration (Seconds)") + labs(x="Term Deposit") + ggtitle("Term Deposit By With Customers")
+
+ggplot(dataset, aes(month, duration)) + geom_boxplot(aes(fill = y)) +labs(y="Duration (Seconds)") + labs(x="Month") + ggtitle("Contact Time By Month")  + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+
+ggplot(dataset, aes(job, duration)) + geom_boxplot(aes(fill = y)) +labs(y="Duration (Seconds)") + labs(x="Job Title") + ggtitle("Contact Time By Customer Job Title")  + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+
+ggplot(dataset, aes(marital, duration)) + geom_boxplot(aes(fill = y)) +labs(y="Duration (Seconds)") + labs(x="Marital Status") + ggtitle("Contact Time By Customer Marital Status")  + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+
+ggplot(dataset, aes(education, duration)) + geom_boxplot(aes(fill = y)) +labs(y="Duration (Seconds)") + labs(x="Education Level") + ggtitle("Contact Time By Customer Education Level")  + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+
+ggplot(dataset, aes(default, duration)) + geom_boxplot(aes(fill = y)) +labs(y="Duration (Seconds)") + labs(x="Default Status") + ggtitle("Contact Time Customers By Customer Credit Default Status")  + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+
+ggplot(dataset, aes(housing, duration)) + geom_boxplot(aes(fill = y)) +labs(y="Duration (Seconds)") + labs(x="Personal Loan") + ggtitle("Contact Time By Customer Personal Loan Status")  + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+
+ggplot(dataset, aes(loan, duration)) + geom_boxplot(aes(fill = y)) +labs(y="Duration (Seconds)") + labs(x="Housing Loan") + ggtitle("Contact Time By Customer Personal Loan Status")  + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+
+# Marital 
+ggplot(data=dataset, aes(x=marital, fill=y)) + geom_bar( position=position_dodge(), colour="black") +labs(y="Count") + labs(x="Marital Status") + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) + ggtitle("Customer Marital Status Distribution") + facet_grid(~y) + scale_fill_hue(c = 75)
+
+marital_pie = table(dataset$marital)
+pctlabels = round(100*marital_pie/sum(marital_pie), 1)
+pielabel = paste(pctlabels, "%", sep="")
+pie(marital_pie,col = rainbow(length(marital_pie)), labels = pielabel , main = 'Marital Status', cex = 0.7)
+legend("topleft", c("divorced","married","single"), cex = 0.7, fill=  rainbow(length(marital_pie)))
+
+# Education
+ggplot(data=dataset, aes(x=education, fill=y)) + geom_bar( position=position_dodge(), colour="black") +labs(y="Count") + labs(x="Education") + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) + ggtitle("Customer Education Level Distribution") + facet_grid(~y) + scale_fill_hue(c = 75)
+
+education_pie = table(dataset$education)
+pctlabels2 = round(100*education_pie/sum(education_pie), 1)
+pielabel2 = paste(pctlabels2, "%", sep="")
+pie(education_pie,col = rainbow(length(education_pie)), labels = pielabel2 , main = "Education Level", cex = 0.7)
+legend("topleft", c("primary","secondary","tertiary","unknown"), cex = 0.7, fill= rainbow(length(education_pie)))
+
+# Type of Job
+ggplot(data=dataset, aes(x=job, fill=y)) + geom_bar( position=position_dodge(), colour="black") +labs(y="Count") + labs(x="Job Title") + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) + ggtitle("Customer Employment Status Distribution") + facet_grid(~y) + scale_fill_hue(c = 75)
+
+job_pie = table(dataset$job)
+pctlabels3 = round(100*job_pie/sum(job_pie), 1)
+pielabel3 = paste(pctlabels3, "%", sep="")
+pie(job_pie,col = rainbow(length(job_pie)), labels = pielabel3, main = "Job Title", cex = 0.7)
+legend("topleft", c("admin.","blue-collar","entrepreneur","housemaid","management","retired","self-employed","services","student","technician","unemployed","unknown"), cex = 0.7, fill= rainbow(length(job_pie)))
+
+#Customer Personal and Commercial Banking
+# Default
+default_pie = table(dataset$default)
+pctlabels4 = round(100*default_pie/sum(default_pie), 1)
+pielabel4 = paste(pctlabels4, "%", sep="")
+pie(default_pie,col = rainbow(length(default_pie)), labels = pielabel4, main = "Credit Default Status", cex = 0.7)
+legend("topleft", c("no","yes"), cex = 0.7, fill= rainbow(length(default_pie)))
+
+#Balance
+ggplot(dataset, aes(x = duration)) + labs(title = "Customer Balance Distribution") + geom_histogram(color = "black", fill = "dodgerblue", aes(y=..count..)) + ylab('Count') + xlab('Balance') 
+
+# Housing Loan
+housing_pie = table(dataset$housing)
+pctlabels5 = round(100*housing_pie/sum(housing_pie), 1)
+pielabel5 = paste(pctlabels5, "%", sep="")
+pie(housing_pie,col = rainbow(length(housing_pie)), labels = pielabel5, main = "Housing Loan", cex = 0.7)
+legend("topleft", c("no","yes"), cex=0.7, fill= rainbow(length(housing_pie)))
+
+# Personal Loan
+loan_pie = table(dataset$loan)
+pctlabels6 = round(100*loan_pie/sum(loan_pie), 1)
+pielabel6 = paste(pctlabels6, "%", sep="")
+pie(loan_pie,col = rainbow(length(loan_pie)), labels = pielabel6, main = "Personal Loan", cex = 0.7)
+legend("topleft", c("no","yes"), cex=0.7, fill= rainbow(length(loan_pie)))
+
+## Current Marketing Campaign
+# Contact Communication Type by Job
+ggplot(data=dataset, aes(x=job, fill=contact)) + geom_bar( position=position_dodge(), colour="black") +labs(y="Count") + labs(x="Job Title") + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) + ggtitle("Communication Type by Job Title Distribution") + facet_grid(~y) + scale_fill_hue(c = 75)
+
+contact_pie = table(dataset$contact)
+pctlabels7 = round(100*contact_pie/sum(contact_pie), 1)
+pielabel7 = paste(pctlabels7, "%", sep="")
+pie(contact_pie,col = rainbow(length(contact_pie)), labels = pielabel7, main = "Contact", cex = 0.7)
+legend("topleft", c("cellular","telephone","unknown"), cex=0.7, fill= rainbow(length(contact_pie)))
+
+# Last Contact Month of the Year
+ggplot(data=dataset, aes(x=month, fill=y)) + geom_bar( position=position_dodge(), colour="black") +labs(y="Count") + labs(x="Month") + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) + ggtitle("Months Customers Were Reached") + facet_grid(~y) + scale_fill_hue(c = 75)
+
+month_pie = table(dataset$month)
+pctlabels8 = round(100*month_pie/sum(month_pie), 1)
+pielabel8 = paste(pctlabels8, "%", sep="")
+pie(month_pie,col = rainbow(length(month_pie)), labels = pielabel8, main = "Month", cex = 0.7)
+legend("topleft", c("apr","aug","dec","feb","jan","jul","jun","mar","may","nov","oct","sep"), cex=0.7, fill= rainbow(length(month_pie)))
+
+# Last Contact Day of Week
+ggplot(data=dataset, aes(x=day, fill=y)) + geom_bar( position=position_dodge(), colour="black") +labs(y="Count") + labs(x="Day") + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) + ggtitle("Days Customers Were Reached") + facet_grid(~y) + scale_fill_hue(c = 75)
+
+# Campaign 
+ggplot(dataset, aes(x = campaign)) + labs(title = "Number of Times Single Customer Was Contacted During Current Campaign") + geom_histogram(color = "black", fill = "dodgerblue", binwidth = 1, aes(y=..count..)) + ylab('Count') + xlab('Number of Contacts') 
+
+## Previous Marketing Campaign
+#Poutcome
+outcome_pie = table(dataset$poutcome)
+pctlabels10 = round(100*outcome_pie/sum(outcome_pie), 1)
+pielabel10 = paste(pctlabels10, "%", sep="")
+pie(outcome_pie,col = rainbow(length(outcome_pie)), labels = pielabel10, main = "Outcome of Previous Campaign", cex = 0.7)
+legend("topleft", c("failure","other","success","unknown"), cex=0.7, fill= rainbow(length(outcome_pie)))
+
+#Previous
+ggplot(dataset, aes(x = previous)) + labs(title = "Number of Times Customer was Contacted Before Current Campaign") + geom_histogram(color = "black", fill = "dodgerblue", binwidth = 1, aes(y=..count..)) + ylab('Count') + xlab('Number of Contacts') 
+
+#pdays
+ggplot(dataset, aes(x = pdays)) + labs(title = "Number of Days Passed After Customer Last Contacted From Previous Campaign") + geom_histogram(color = "black", fill = "dodgerblue", binwidth = 30, aes(y=..count..)) + ylab('Count') + xlab('Number of Days') 
+
+#Subscription
+y_pie = table(dataset$y)
+pctlabels11 = round(100*y_pie/sum(y_pie), 1)
+pielabel11 = paste(pctlabels11, "%", sep="")
+pie(y_pie,col = rainbow(length(y_pie)), labels = pielabel11, main = "Term Deposit Subscription", cex = 0.8)
+legend("topleft", c("no","yes"), cex=0.6, fill= rainbow(length(y_pie)))
+
+barplot(prop.table(table(dataset$y)), col = rainbow(2), ylim = c(0, 1), main = "Class Distribution") 
+
+ggplot(dataset, aes(duration, campaign, color = y)) + geom_point(alpha = 3/10) + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Duration By Number Of Contacts Performed With Client This Campaign")
+
+ggplot(dataset, aes(duration, previous, color = y)) + geom_point(alpha = 3/10) + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Duration By Number Of Contacts Performed With Client Before Campaign")
+
+ggplot(dataset, aes(age, balance, color = y)) + geom_point(alpha = 3/10) + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Average Yearly Balance By Age")
+
+ggplot(dataset,aes(age, duration, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ job, scales ="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Last Contact Duration By Age and Employment Status")
+
+ggplot(dataset,aes(age, duration, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ education, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Last Contact Duration By Age and Education Level")
+
+ggplot(dataset,aes(age, duration, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ default, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Last Contact Duration By Age and Credit Default Status")
+
+ggplot(dataset,aes(age, duration, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ housing, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Last Contact Duration By Age and Housing Loan Status")
+
+ggplot(dataset,aes(age, duration, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ loan, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Last Contact Duration By Age and Personal Loan Status")
+
+ggplot(dataset,aes(age, duration, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ contact, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Last Contact Duration By Age and Contact Communication Type")
+
+ggplot(dataset,aes(age, duration, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ month, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Last Contact Duration By Age and Last Contact Month Of The Year") 
+
+ggplot(dataset,aes(age, duration, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ day, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Last Contact Duration By Age and Credit Default Status") + labs(title = "Last Contact Duration By Age and Contact Day Of Months")
+
+ggplot(dataset,aes(age, balance, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ job, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Average Yearly Balance By Employment Status")
+
+ggplot(dataset,aes(age, balance, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ education, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Average Yearly Balance By Education Level Status")
+
+ggplot(dataset,aes(age, balance, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ default, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Average Yearly Balance By Credit Default Status")
+
+ggplot(dataset,aes(age, balance, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ housing, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c( "no", "yes")) + labs(title = "Average Yearly Balance By Housing Loan Status")
+
+ggplot(dataset,aes(age, balance, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ loan, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c("no", "yes")) + labs(title = "Average Yearly Balance By Personal Loan Status")
+
+ggplot(dataset,aes(age, balance, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ contact, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c( "no", "yes")) + labs(title = "Average Yearly Balance By Contact Communication Type")
+
+ggplot(dataset,aes(age, balance, color = y)) + geom_point(alpha = 5/10) + facet_wrap( ~ month, scales="free") + scale_color_manual(name="Class", values = c("dodgerblue", "purple"),labels=c( "no", "yes")) + labs(title = "Average Yearly Balance By Last Contact Month Of The Year")
+
+ggplot(dataset,aes(age)) + geom_histogram(color = "black", fill = "dodgerblue", binwidth = 2, aes(x= age)) + facet_wrap( ~ job, scales="free") + labs(title = "Age By Employment Status")
+
+ggplot(dataset,aes(age)) + geom_histogram(color = "black", fill = "dodgerblue", binwidth = 2, aes(x= age)) + facet_wrap( ~ education, scales="free") + labs(title = "Age By Education Level")
+
+ggplot(dataset,aes(age)) + geom_histogram(color = "black", fill = "dodgerblue", binwidth = 2, aes(x= age)) + facet_wrap( ~ marital, scales="free") + labs(title = "Age By Marital Status")
+
+ggplot(dataset,aes(balance)) + geom_histogram(color = "black", fill = "dodgerblue", binwidth = 2, aes(x= age)) + facet_wrap( ~ job, scales="free") + labs(title = "Average Yearly Balance By Employment Status")
+
+ggplot(dataset,aes(balance)) + geom_histogram(color = "black", fill = "dodgerblue", binwidth = 2, aes(x= age)) + facet_wrap( ~ education, scales="free") + labs(title = "Average Yearly Balance By Education Level")
+
+ggplot(dataset,aes(balance)) + geom_histogram(color = "black", fill = "dodgerblue", binwidth = 2, aes(x= age)) + facet_wrap( ~ marital, scales="free") + labs(title = "Average Yearly Balance By Marital Status")
+```
+
+# Correlation Analysis
+```{r}
+#Converting dataset features to numeric 
+data.numeric = (as.data.frame(lapply(dataset, as.numeric)))
+cbind(data.frame(data.numeric))
+                   
+pf_subset = data.numeric[,c(1,6,10,12,13,14,15)]
+names(pf_subset)
+
+########
+#Spearman for continuous and discrete variables
+library(psych)
+pairs.panels(pf_subset[,1:7], 
+             method = "spearman", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+
+# Correlation Matrix
+cor.spear = cor(pf_subset, method = "spearman")
+
+# Correlation Plot
+corrplot(cor(cor.spear), method = "circle", number.cex = 0.8, main = "Correlation")
+
+#######
+#Categoricial 
+
+
+#Chi-Square Test
+chisq.test(dataset$y, dataset$job) 
+chisq.test(dataset$y, dataset$marital)
+chisq.test(dataset$y, dataset$education)
+chisq.test(dataset$y, dataset$default)
+chisq.test(dataset$y, dataset$housing)
+chisq.test(dataset$y, dataset$loan)
+chisq.test(dataset$y, dataset$contact)
+chisq.test(dataset$y, dataset$month)
+chisq.test(dataset$y, dataset$poutcome)
+
+
+#######
+
+#Ordinal or numeric 
+
+# Wilcoxon rank-sum test
+wilcox.test(data.numeric$y, data.numeric$age, paired=FALSE, conf.level = 0.95)
+wilcox.test(data.numeric$y, data.numeric$balance, paired=FALSE,conf.level = 0.95)
+wilcox.test(data.numeric$y, data.numeric$day, paired=FALSE,conf.level = 0.95)
+wilcox.test(data.numeric$y, data.numeric$duration, paired=FALSE,conf.level = 0.95)
+wilcox.test(data.numeric$y, data.numeric$campaign, paired=FALSE,conf.level = 0.95)
+wilcox.test(data.numeric$y, data.numeric$pdays, paired=FALSE,conf.level = 0.95)
+wilcox.test(data.numeric$y, data.numeric$previous, paired=FALSE,conf.level = 0.95)
+
+set.seed(123)
+# calculate correlation matrix
+correlationMatrix = cor(data.cor[,1:17])
+
+# find attributes that are highly corrected (ideally >0.75)
+highlyCorrelated = findCorrelation(correlationMatrix, cutoff = 0.75)
+
+# print indexes of highly correlated attributes
+print(highlyCorrelated)
+```
+
+## Data Validation & Cleaning 
+```{r}
+#Number of missing values by variable
+sapply(dataset, function(x) sum(is.na(x)))
+
+#Replacing 'unknown' with 'NA'
+dataset[ dataset == "unknown" ] = NA
+dataset[ dataset == "other" ] = NA
+
+#Visual for NA
+missing_data = aggr(dataset, sortVars = TRUE, numbers = TRUE, prop = TRUE, sortCombs = TRUE)
+missing_data
+
+#Missing Data
+p = function(x) {sum(is.na(x))/length(x)*100}
+apply(dataset, 2, p)
+md.pattern(dataset)
+md.pairs(dataset)
+
+#Impute
+impute = mice(dataset, m=5, seed = 123)
+print(impute)
+
+#Compute
+completedData = complete(impute, 1)
+
+# Structure of data after transformation
+head(dataset, n = 100)
+head(completedData, n = 100)
+
+# create new dataset without missing data 
+cleandata = na.omit(completedData)
+nrow(cleandata)
+
+# Number of missing values by variable after transformation
+sapply(cleandata, function(x) sum(is.na(x)))
+
+# Number of duplicate rows
+sum(duplicated(cleandata))
+
+# Removing duplicate rows
+finaldata = distinct(cleandata)
+nrow(finaldata)
+
+# Rename a column
+names(finaldata)[17]="term_deposit"
+
+#Replace target variables with yes with 1 and no with 0
+finaldata$term_deposit = ifelse(finaldata$term_deposit == 'no', 0, 1)
+finaldata$term_deposit = as.factor(finaldata$term_deposit)
+table(finaldata$term_deposit)
+
+
+view(finaldata)
+# Outcome Percentage
+prop.table(table(finaldata$term_deposit))
+
+# Term Deposit Subscription Barplot for Customers
+barplot(prop.table(table(finaldata$term_deposit)), col = rainbow(2), ylim = c(0, 1), main = "Class Distribution")
+
+# Display first 5 rows 
+head(finaldata, n = 5)
+
+# checking classes of attributes after cleaning
+sapply(finaldata,class)
+
+
+# check for zero variance
+zero.var = nearZeroVar(finaldata, saveMetrics=TRUE)
+zero.var
+```
+
+## Data Normalization & Pre-Processing 
+```{r}
+#Checking attribute levels after imputation
+finaldata$job = factor(finaldata$job)
+finaldata$education = factor(finaldata$education)
+finaldata$contact = factor(finaldata$contact)
+finaldata$poutcome = factor(finaldata$poutcome)
+sapply(finaldata, levels)
+
+#Bucketing Job Values
+levels(finaldata$job)[levels(finaldata$job) %in% 
+c("retired","student","unemployed")] = "unemployed"
+levels(finaldata$job)[levels(finaldata$job) %in% c("admin.","blue-collar","entrepreneur","housemaid","management","self-employed","services","technician")] = "employed"
+table(finaldata$job)
+
+#Centering and scaling data
+preProcValues = preProcess(finaldata, method = c("center", "scale"))
+finaldataNormalized = predict(preProcValues, finaldata)
+str(finaldataNormalized)
+table(finaldataNormalized$term_deposit)
+
+#convert categorical variables  to numeric variables
+dummyVars = dummyVars(term_deposit ~ ., data = finaldataNormalized, fullRank = TRUE)
+transformedData = data.frame(predict(dummyVars, newdata = finaldataNormalized))
+names(transformedData)
+str(transformedData)
+
+# Add term_deposit to processed dataset
+transformedData$term_deposit = finaldataNormalized$term_deposit
+table(transformedData$term_deposit)
+
+#Adding labels to target variable 
+transformedData$term_deposit = factor(transformedData$term_deposit,
+levels = c(1, 0),
+labels = c("yes", "no"))
+table(transformedData$term_deposit)
+view(transformedData)
+```
+
+## Balancing Dataset
+```{r}
+#Data Partition for Full Dataset (Training & Testing)
+# Use caret to create a 80/20% split of the training and testing data. 
+set.seed(123)
+trainIndex = createDataPartition(transformedData$term_deposit, p=.80, list=FALSE)
+training.set = transformedData[trainIndex, ]
+test.set = transformedData[-trainIndex, ]
+
+#Verify proportions
+prop.table(table(transformedData$term_deposit))
+prop.table(table(training.set$term_deposit))
+prop.table(table(test.set$term_deposit))
+
+#Balancing Training Set
+trainBalance = SMOTE(term_deposit~., training.set, perc.over = 100, perc.under=200)
+table(trainBalance$term_deposit)
+dim(trainBalance)
+prop.table(table(trainBalance$term_deposit))
+```
+
+
+## Model Development
+```{r}
+# Set up caret to perform 10-fold cross validation repeated 3 times and to use a grid search for optimal model hyperparamters 
+#Define training control
+set.seed(123)
+train.control = trainControl(method = "repeatedcv",
+                             number = 10,
+                             repeats = 3, 
+                             savePredictions = TRUE,
+                             classProbs = TRUE,
+                             summaryFunction = twoClassSummary)
+
+# Fit logistic regression model using training set
+set.seed(123)
+glm_model = train(term_deposit ~., 
+                data = trainBalance, 
+                method = "glm",
+                metric = "ROC",
+                family = binomial(link='logit'),
+                tuneLength = 10,
+                trControl = train.control)
+
+# Fit random forest model using training set
+set.seed(123)
+rf_model = train(term_deposit ~., 
+                 data = trainBalance,
+                 method = "rf", 
+                 metric = "ROC",
+                 importance = TRUE,
+                 tuneLength = 10,
+                 trControl = train.control)
+
+# Fit KNN using training set 
+set.seed(123)
+knn_model = train(term_deposit ~ ., 
+                data = trainBalance, method = "knn",  
+                metric = "ROC",
+                tuneLength = 10,
+                trControl = train.control)
+
+# Fit Neural Network model using training set 
+set.seed(123)
+nnet_model = train(term_deposit ~ ., 
+                data = trainBalance, method = "nnet",  
+                metric = "ROC",
+                tuneLength = 10,
+                trControl = train.control)
+```
+
+
+## Trained Model Evaluation
+```{r}
+#Logistic Regression Model Evalaution
+summary(glm_model)
+print(glm_model)
+plot(varImp(object=glm_model),main="GLM - Variable Importance")
+glm_model$times
+
+confusionMatrix(glm_model)
+
+#Random Forest Model Evalaution
+print(rf_model)
+plot(rf_model)
+plot(varImp(object=rf_model),main="RF - Variable Importance")
+confusionMatrix(rf_model)
+
+#Neural Network Model Evalaution
+print(nnet_model)
+plot(nnet_model)
+print(nnet_model)
+plot(varImp(object=nnet_model),main="NNET - Variable Importance")
+confusionMatrix(nnet_model)
+
+#KNN Model Evalaution
+print(knn_model)
+plot(knn_model)
+plot(varImp(object = knn_model), main = "KNN - Variable Importance")
+confusionMatrix(knn_model)
+```
+
+## Model Comparison
+```{r}
+#Put all models into a list
+multi_models = resamples(list(glm = glm_model,
+                    rf = rf_model,
+                    knn = knn_model,
+                    nnet = nnet_model))
+#Results
+summary(multi_models)
+dotplot(multi_models)
+
+bwplot(multi_models, layout = c(3, 1))
+```
+
+## Model Parameter Tuning
+```{r}
+set.seed(123)
+control.featureSelection = rfeControl(functions = rfFuncs, 
+                                      method = "repeatedcv", 
+                                      number = 3,
+                                      verbose = FALSE)
+
+
+outcomeName = "term_deposit"
+
+predictors = names(trainBalance)[!names(trainBalance) %in% outcomeName]
+
+featureSelection = rfe(trainBalance[,predictors], 
+                       trainBalance[,outcomeName],
+                      rfeControl = control.featureSelection,
+                      metric = "ROC",
+                      allowParallel = TRUE)
+
+# summarize the results
+print(featureSelection)
+predictors(featureSelection)
+plot(featureSelection, type=c("g","o"))
+
+##########ALL VARIABLES
+tunegrid = expand.grid(.mtry=c(sqrt(ncol(trainBalance))))
+modellist = list()
+for (ntree in c(500, 1000, 1500, 2000, 2500)) {
+	set.seed(123)
+	fit <- train(term_deposit~., 
+	             data=trainBalance, 
+	             method="rf",
+	             metric="ROC", 
+	             tuneGrid=tunegrid, 
+	             trControl=train.control, 
+	             ntree=ntree,
+	             importance = T)
+	key = toString(ntree)
+	modellist[[key]] <- fit
+}
+
+
+# compare results
+results <- resamples(modellist)
+summary(results)
+dotplot(results)
+bwplot(results, layout = c(3, 1))
+fit$finalModel
+
+########## FINAL MODEL
+rfTuneGrid <- expand.grid(.mtry=c(sqrt(ncol(trainBalance))))
+rfTune = train(term_deposit~.,
+               data = trainBalance,
+               method = "rf",
+               trControl = train.control,
+               metric = "ROC",
+               ntree = 2500,
+               tuneGrid = rfTuneGrid,
+               importance = TRUE)
+
+#Random Forest Model Evalaution
+print(rfTune)
+plot(varImp(object=rfTune),main="RF Tuned Model - Variable Importance")
+rfTune$results
+rfTune$finalModel
+confusionMatrix(rfTune)
+```
+
+## Making Predictions On Test Set
+```{r}
+# Making Predictions on test set
+rf_class.test = predict(rfTune, 
+                    newdata = test.set) # classification outcome required for the confusion matrix
+
+rf_pred.test = predict(rfTune, 
+                  newdata = test.set, 
+                  type = "prob") # predicted data required for ROC curve
+
+#ROC
+auc = auc(test.set$term_deposit, rf_pred.test[,2])
+plot(roc(test.set$term_deposit, rf_pred.test[,2]), print.auc = TRUE)
+
+#Confusion Matrix 
+rf_conf.test = confusionMatrix(rf_class.test, test.set$term_deposit, positive = "yes", mode = "everything")
+rf_conf.test
+```
+                       
+                   
