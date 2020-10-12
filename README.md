@@ -1,5 +1,4 @@
 # Cost Reduction and Process Optimization in Retail Banking
-This Capstone project is a part of Ryerson University's Data Analytics, Big Data, and Predictive Analytics post-gradate certificate program. Other projects can be found at the [main GitHub repo](https://github.com/welcomenikhil).
 
 #### -- Project Status: [Completed]
 
